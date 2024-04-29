@@ -1,0 +1,257 @@
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title> Grafika Komputerowa Lab6</title>
+	<link rel="stylesheet" href="../demo.css">
+	<script src="../script/glsim.js"></script>
+	<script>
+		//------------------------------------------ globalne -------------------------------
+		
+		var camera;
+		var animate;
+		var animating;
+		var canvas;
+		var animating = false;
+		var frameNumber = 0;
+		var texNumber = 0;
+		
+		var loadingImages = false;
+		var textureImages = new Array();  // Will hold Image objects loaded from image URLs.
+		var textureImageURLs = [
+			"./brick001.jpg",
+			"./Earth-1024x512.jpg",
+			"./NightEarth-512x256.jpg",
+			"./marble.jpg",
+			"./metal003.gif",
+			"./mandelbrot.jpeg"
+		];
+		
+		//------------------------------------------ pobieranie obrazów ------------------
+		
+		function loadImages() {
+			var loadedCt = 0;
+			for (var i = 0; i < textureImageURLs.length; i++) {
+				textureImages[i] = new Image();
+				textureImages[i].onload = imageLoaded;
+				textureImages[i].src = textureImageURLs[i];
+			
+			}
+			
+			function imageLoaded() {
+				loadedCt++;
+				if (loadedCt == textureImageURLs.length) {
+					loadingImages = false;
+					glEnable(GL_TEXTURE_2D);
+					var image = textureImages[texNumber];
+					try {
+						glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,image.width,image.height,0,GL_RGBA,GL_UNSIGNED_BYTE,image);
+					} catch(e) {
+						// Some browsers (Chrome at least) get a Security error if they try to use an image from the local disk.
+						document.getElementById("canvas-holder").innerHTML="Can't access texture.<br>Note: Some browsers can't use a file from a local disk."
+						return;
+					}
+					// MUST set this since we don't have mipmaps
+					draw();
+				}
+			}
+		}
+		
+		//------------------------------------------ inity --------------------------------
+		
+		function initGL() {
+			glEnable(GL_LIGHTING);
+			glEnable(GL_LIGHT0);
+			glEnable(GL_NORMALIZE);
+			glEnable(GL_DEPTH_TEST);
+			glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, [ 1, 1, 1,1 ]);// white material for texturing.
+		}
+		
+		function init(){
+			canvas = document.getElementById("canvas");
+			document.getElementById("animate").checked = false;
+			document.getElementById("animate").onchange = doAnimate;
+			try {
+				glsimUse(canvas,null);
+			}
+			catch (e) {
+				document.getElementById("fuck").innerHTML="<p><b>Sorry, an error occurred:<br>" +
+						e + "</b></p>";
+			return;
+			}
+			initGL();
+			camera = new Camera();
+			camera.setScale(1);
+			camera.lookAt(2,2,5, 0,0,0, 0,1,0);
+			camera.installTrackball(draw);
+			if(texNumber!=0){
+				loadImages();
+			} else {
+				draw();			
+			}
+		}
+		
+		function doAnimate(){
+		animating = document.getElementById("animate").checked;
+			if (animating) {
+			frameNumber++;
+			draw();
+			setTimeout(doAnimate,30);
+			}
+		}
+		
+		function texChange(i){
+			texNumber = i;
+		}
+		//----------------------------------- funkcja rysowania ---------------------------------------------
+		function draw(){
+			glDisable(GL_LIGHTING);
+			glDisable(GL_DEPTH_TEST);
+			glDisable(GL_TEXTURE_2D);
+			glViewport(0,0,256,256);  // Note that canvas must be at least 256-by-256.
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();
+			glOrtho( -1,1, -1,1, -1,1 );   // Limits requied by 2D scene
+			glMatrixMode(GL_MODELVIEW);
+			if (loadingImages) {
+				return;
+			}
+			switch(texNumber){
+				case 0:
+					draw2d();
+					glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, 256, 256, 0);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+					break;
+				default:
+					break;
+			}
+			glEnable(GL_LIGHTING);
+			glEnable(GL_DEPTH_TEST);
+			glEnable(GL_TEXTURE_2D);
+			glViewport(0,0,canvas.width,canvas.height);  // restore full viewport!
+    
+			camera.apply(); // (Sets up projection and viewing transforms.)
+
+			glClearColor( 0, 0, 0, 1 );
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glScalef(0.5,0.5,0.5);
+			piramidSides();
+			piramidBase();
+		
+		}
+		
+		//---------------------------------------------- rysowanie 2d ---------------------------------------
+		
+		function draw2d(){
+			glClearColor( 0.5, 0.5, 1, 1.0 );
+			glClear(GL_COLOR_BUFFER_BIT); // Fills the scene with blue.
+			glLoadIdentity();
+			drawRing();
+		}
+		
+		function drawRing(){
+			var i;
+			var j;
+			
+			for(i =0; i<=8;i++){
+				glRotatef(frameNumber * (180/60),0,0,1); 
+				var angle = 2*Math.PI/8*i;
+				var x1 = Math.cos(angle);
+				var y1 = Math.sin(angle);
+				glColor3f(Math.abs(x1),Math.abs(y1),1/8*i);
+				glTranslatef(x1*.9,y1*.9,0);
+				glRotatef(-frameNumber * (180/60),0,0,1); 
+				glBegin(GL_POLYGON);
+				for(j =0; j<=8;j++){
+					var angle = 2*Math.PI/8*j;
+					var x = Math.cos(angle)*.1;
+					var y = Math.sin(angle)*.1;
+					glVertex2f(x,y);
+				}
+				
+				glEnd();
+				glLoadIdentity();
+				}
+				
+		}
+		
+		//------------------------------------- 3d models ---------------------------
+		
+		function piramidSides(){
+			var i;
+			
+			glBegin(GL_TRIANGLE_FAN);
+			glTexCoord2d(0.5,0.5);
+			glNormal3d( 0, 0, 1 );
+			glVertex3d(0,0,1);
+			for( i = 0; i <=8;i++){
+				var angle = 2*Math.PI/8 * i;
+				var x = Math.cos(angle);
+				var y = Math.sin(angle);
+				glTexCoord2d(y,x);
+				glNormal3d( x, y, 0.5 );
+				glVertex3d(x,y,0);
+			}
+			glEnd();
+		}
+		
+		function piramidBase(){
+			var i;
+			glNormal3d( 0, 0, -1 );
+			glTexCoord2d(0.5,0.5);
+			glBegin(GL_TRIANGLE_FAN);
+			glVertex3d(0,0,0);
+			for( i = 0; i <=8;i++){
+				var angle = 2*Math.PI/8 * i;
+				var x = Math.cos(angle);
+				var y = Math.sin(angle);
+				glTexCoord2d(y,x);
+				glVertex3d(x,y,0);
+			}
+			glEnd();
+		}
+	</script>
+<head>
+<body onload="init()">
+	<!--<div id="panel-holder">
+		<canvas id="panel"></canvas>
+	</div>-->
+	<div id="canvas-holder">
+		<canvas id="canvas" height="500" width="500"></canvas>
+	</div>
+	<div>
+		<table>
+				<tr>
+					<td>
+						<label><input type="checkbox" id="animate">Animate</input></label>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<button onclick="texChange(0)">Pobierz teksture z panelu</button>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<button onclick="texChange(1)">Użyj tekstury numer 1</button>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<button onclick="texChange(2)">Użyj tekstury numer 2</button>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<button onclick="texChange(3)">Użyj tekstury numer 3</button>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<button onclick="texChange(4)">Użyj tekstury numer 4</button>
+					</td>
+				</tr>			
+		</table>
+		<div id="fuck"></div>
+	</div>
+</body>
+</html>
