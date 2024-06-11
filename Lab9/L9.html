@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<head>
+<meta charset="UTF-8">
+<title>Laboratorium 9 - Karuzela</title>
+<script src="https://cdn.jsdelivr.net/npm/three@0.115/build/three.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.115/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.115/examples/js/loaders/GLTFLoader.js"></script>
+<script>
+
+"use strict";
+	const n = 8;
+	var canvas, camera, scene, renderer;
+	var controls;
+	var animating = false;
+	var frameNumber = 0;
+	var base;
+	var roof;
+	var earth;
+	var horse;
+	var horses = [];
+	var poles = [];
+	var mixers = [];
+	const loader = new THREE.GLTFLoader();
+	
+	function render(){
+		renderer.render(scene,camera);
+	}
+
+	function theWorld(){
+		renderer.setClearColor("white");
+		scene = new THREE.Scene();
+		camera = new THREE.PerspectiveCamera(30, canvas.width/canvas.height, 0.1, 100);
+		camera.position.z = 30;
+		var light;
+		light = new THREE.DirectionalLight();
+		light.position.set(0,0,1);
+		camera.add(light);
+		scene.add(camera);
+		
+		base =  new THREE.Mesh(
+			new THREE.CylinderGeometry(9,10,.5,8),
+			new THREE.MeshPhongMaterial({
+				color: 0x66BBFF,
+				specular: 0x222222,
+				shininess: 16,
+				shading: THREE.FlatShading
+			})
+		);
+		roof =  new THREE.Mesh(
+			new THREE.CylinderGeometry(0,9,2,8),
+			new THREE.MeshPhongMaterial({
+				color: 0x66BBFF,
+				specular: 0x222222,
+				shininess: 16,
+				shading: THREE.FlatShading
+			})
+		);
+		roof.position.y = 5;
+		base.add(roof);
+
+		var texture = new THREE.TextureLoader().load('resources/earth.jpg'); 
+		var material = new THREE.MeshBasicMaterial({map: texture});
+		earth =  new THREE.Mesh(new THREE.SphereGeometry(2,16,16), material);
+		earth.position.y = 0.2	;
+		scene.add(earth);
+		base.position.y = -2;
+		//base.rotation.y = Math.PI/3;
+		scene.add(base);
+		let radius = 7;
+		for(let i = 0; i<n;i++){
+			loader.load( "./resources/Horse.glb", function ( gltf ) {
+				//Dodawanie Konia
+				gltf.scene.scale.set(0.015,0.015,0.015);
+				gltf.scene.position.x = (Math.sin((Math.PI/(n/2) * i) )) * radius;
+				gltf.scene.position.z = (Math.cos((Math.PI/(n/2))*i) ) * radius;
+				gltf.scene.position.y = .5;
+				gltf.scene.rotation.y = (Math.PI/2)+ ((2*Math.PI)/n * i);
+				horse = gltf.scene.clone();
+				//Dodawanie Słupka dla konia
+				poles[i] = new THREE.Mesh(
+					new THREE.CylinderGeometry(.5,.5,4,8),
+					new THREE.MeshPhongMaterial({
+						color: 0xE6C354,
+						specular: 0x222222,
+						shininess: 16,
+						shading: THREE.FlatShading
+					})
+				)
+				poles[i].scale.set(.2,1,.2);
+				poles[i].position.x = horse.position.x;
+				poles[i].position.z = horse.position.z;
+				poles[i].position.y = 2;
+				base.add(poles[i]);
+				horses.push(horse);
+				base.add(horses[i]);
+			} );
+		}
+		
+	}
+	
+	function installOrbitControls() {
+		controls = new THREE.OrbitControls(camera,canvas);
+		controls.noPan = true; 
+		controls.noZoom = true;
+		controls.staticMoving = true;
+		function move() {
+			controls.update();
+			if (! animating) {
+				render();
+			}
+		}
+		function down() {
+			document.addEventListener("mousemove", move, false);
+		}
+		function up() {
+			document.removeEventListener("mousemove", move, false);
+		}
+		function touch(event) {
+			if (event.touches.length == 1) {
+				move();
+			}
+		}
+		canvas.addEventListener("mousedown", down, false);
+		canvas.addEventListener("touchmove", touch, false);
+	}
+
+	function updateForFrame() {		
+		base.rotation.y += 0.01;		
+	}
+	
+	function doAnimateCheckbox() {
+	   var run = document.getElementById("animateCheckbox").checked;
+	   if (run != animating) {
+		   animating = run;
+		   if (animating) {
+			   requestAnimationFrame(doFrame);
+		   }
+	   }
+	}
+	
+	function doFrame() {
+		if (animating) {
+			frameNumber++;
+			updateForFrame();
+			render();
+			requestAnimationFrame(doFrame);
+		}
+	}
+	
+	function init(){
+		try{
+			canvas = document.getElementById("glcanvas");
+			renderer = new THREE.WebGLRenderer({
+				canvas: canvas,
+				antialias: true,
+				alpha: false
+			});
+		}
+		catch(e){
+			document.getElementById("main").innerHTML = "Something went wrong:" + e;
+			return;
+		}
+		document.getElementById("animateCheckbox").checked = false;
+		document.getElementById("animateCheckbox").onchange = doAnimateCheckbox;
+		theWorld();
+		installOrbitControls();
+		render();
+	}
+</script>
+</head>
+<body onload="init()">
+<p id="main"> informacja <label><input type="checkbox" id="animateCheckbox"><b>Animate</b></label></p>
+<div style="background-color: blue;">
+	<canvas width=1200 height=600 id="glcanvas"><canvas/>
+</div>
+</body>

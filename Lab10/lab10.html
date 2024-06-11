@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<head>
+<meta charset="UTF-8">
+<title>Laboratorium 11 - Pionek</title>
+<script src="https://cdn.jsdelivr.net/npm/three@0.115/build/three.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.115/examples/js/controls/OrbitControls.js"></script>
+<script>
+    "use strict";
+    var canvas, camera, scene, renderer;
+    var controls;
+    var base;
+    var pawn;
+    function theWorld(){
+        renderer.setClearColor("white");
+		scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(30, canvas.width/canvas.height, 0.1, 100);
+		camera.position.z = 30;
+		var light;
+		light = new THREE.DirectionalLight();
+		light.position.set(0,0,1);
+		camera.add(light);
+		scene.add(camera);
+
+        base =  new THREE.Path();
+        base.moveTo(0,1);
+        base.lineTo(3,1);
+        base.bezierCurveTo( 3,1.3,  2.7,1.8,  2,2);
+        base.bezierCurveTo(1.4,4, 1.3,6, 1.2,8);
+        base.lineTo(1.8,8);
+        base.bezierCurveTo(2,8.4, 1.5,8.8, 1.2,9);
+        base.bezierCurveTo(1.1,9.2, 3,11.8, 0.7,12);
+        base.bezierCurveTo(.9,12.25, .7,12.4, 0,12.5);
+
+
+        const points = base.getPoints();
+        pawn = new THREE.Mesh(new THREE.LatheGeometry(points),new THREE.MeshPhongMaterial({
+				color: 0x42464B,
+				specular: 0x1e2022,
+				shininess: 16,
+				shading: THREE.FlatShading
+			}));
+        pawn.position.y = -5;
+        scene.add(pawn);
+        
+    }
+    function init(){
+		try{
+			canvas = document.getElementById("glcanvas");
+			renderer = new THREE.WebGLRenderer({
+				canvas: canvas,
+				antialias: true,
+				alpha: false
+			});
+		}
+		catch(e){
+			document.getElementById("main").innerHTML = "Something went wrong:" + e;
+			return;
+		}
+		theWorld();
+		installOrbitControls();
+		render();
+	}
+
+    function render(){
+		renderer.render(scene,camera);
+	}
+
+    function installOrbitControls() {
+		controls = new THREE.OrbitControls(camera,canvas);
+		controls.noPan = true; 
+		controls.noZoom = true;
+		controls.staticMoving = true;
+		function move() {
+			controls.update();
+				render();
+		}
+		function down() {
+			document.addEventListener("mousemove", move, false);
+		}
+		function up() {
+			document.removeEventListener("mousemove", move, false);
+		}
+		function touch(event) {
+			if (event.touches.length == 1) {
+				move();
+			}
+		}
+		canvas.addEventListener("mousedown", down, false);
+		canvas.addEventListener("touchmove", touch, false);
+	}
+
+</script>
+</head>
+<body onload="init()">
+<p id="main"></p>
+<div style="background-color: blue;">
+	<canvas width=1200 height=600 id="glcanvas"><canvas/>
+</div>
+</body>
